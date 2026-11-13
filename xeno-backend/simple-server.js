@@ -647,6 +647,13 @@ app.put("/api/user/profile", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     const tenantId = req.user.tenantId;
 
+    if (req.user.role === "VIEWER") {
+      return res.status(403).json({
+        success: false,
+        message: "Demo accounts can't change store settings",
+      });
+    }
+
     if (!shopDomain || !accessToken) {
       return res.status(400).json({
         success: false,
