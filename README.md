@@ -1,4 +1,4 @@
-# Xeno Analytics by Savya Gupta
+
 ### Multi-Tenant Shopify Data Ingestion & Business Intelligence Platform
 
 
@@ -99,10 +99,7 @@ With your development store set up, you're ready to:
 ---
 
 ## Additional Resources
-<img src="./assets/s1.png"></img>
-<img src="./assets/s3.png"></img>
-<img src="./assets/s4.png"></img>
-<img src="./assets/s5.png"></img>
+
 
 - [Shopify Partner Documentation](https://shopify.dev/docs)
 - [Shopify API Reference](https://shopify.dev/api)
@@ -121,7 +118,6 @@ With your development store set up, you're ready to:
 - [Demo Access](#demo-access)
 - [Architecture](#system-architecture)
 - [Technology Stack](#technology-stack)
-- [Visual Showcase](#visual-showcase)
 - [Database Design](#database-schema)
 - [API Documentation](#api-endpoints)
 - [Getting Started](#getting-started)
@@ -147,7 +143,7 @@ Xeno Analytics is a sophisticated multi-tenant platform designed to bridge the g
 - Scalable cloud-native infrastructure
 
   
-<img src="./assets/image.png"></img>
+
 ---
 
 ##  Key Features
@@ -211,7 +207,7 @@ The demo login is **read-only**: it sees a real Shopify development store's sync
 
 ## System Architecture
 
-<img src="./assets/architecture.jpg"></img>
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │                   CLIENT LAYER                       │
@@ -269,35 +265,6 @@ The demo login is **read-only**: it sees a real Shopify development store's sync
 - **Vercel** - Frontend hosting
 - **Ngrok** - Webhook testing during local development
 
----
-
-## Visual Showcase
-
-### Landing Page & Authentication
-<div align="center">
-<img src="./assets/login.png" alt="Landing Page" width="800"/>
-</div>
-
----
-
-### Analytics Dashboard Overview
-<div align="center">
-<img src="./assets/analytics.png" alt="Analytics Dashboard" width="800"/>
-</div>
-
----
-
-### pgAdmin
-<div align="center">
-<img src="./assets/pgadmin.png" alt="Business Intelligence Charts" width="800"/>
-</div>
-
----
-
-### Webhook Integration & Real-Time Sync
-<div align="center">
-<img src="./assets/ngrok.png" alt="Shopify Webhook Integration" width="800"/>
-</div>
 
 ---
 
@@ -637,25 +604,7 @@ const authenticate = async (req, res, next) => {
 
 
 
-<div align="center">
 
-### Built with ❤️ for the Xeno FDE Internship Assignment 2025
-
-<!-- <img src="./assets/passport_savya.png" alt="Savya Gupta" width="200" style="border-radius: 10px; margin: 20px 0;"/>
-
-**Savya Gupta**  
-*Full Stack Developer & Computer Science Student* -->
-
-[![Portfolio](https://img.shields.io/badge/Portfolio-000000?style=for-the-badge&logo=About.me&logoColor=white)](https://savyagupta.netlify.app)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/-savyagupta/)
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/savyagupta-2004)
-
-
-</div>
-
----
-
-<div align="center">
 
 *Thank you!*
 
