@@ -154,9 +154,12 @@ const analyticsService = {
     try {
       const whereClause = { tenantId };
       if (startDate && endDate) {
+        // endDate is a plain date (YYYY-MM-DD); include that whole day
+        const end = new Date(endDate);
+        end.setUTCHours(23, 59, 59, 999);
         whereClause.createdAt = {
           gte: new Date(startDate),
-          lte: new Date(endDate),
+          lte: end,
         };
       }
 

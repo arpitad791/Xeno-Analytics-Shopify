@@ -294,7 +294,7 @@ class ShopifyService {
       console.log(`🔄 Syncing orders for tenant ${tenantId} (${config.storeName})...`);
 
       const response = await axios.get(
-        `https://${config.storeUrl}/admin/api/2024-01/orders.json?limit=250`,
+        `https://${config.storeUrl}/admin/api/2024-01/orders.json?limit=250&status=any`,
         {
           headers: { 
             'X-Shopify-Access-Token': config.accessToken,
@@ -345,6 +345,7 @@ class ShopifyService {
                 fulfillmentStatus: order.fulfillment_status || null,
                 orderStatus: order.cancelled_at ? 'CANCELLED' : 'OPEN',
                 processedAt: order.processed_at ? new Date(order.processed_at) : null,
+                ...(order.created_at && { createdAt: new Date(order.created_at) }),
                 updatedAt: new Date()
               },
               create: {
@@ -361,7 +362,8 @@ class ShopifyService {
                 financialStatus: order.financial_status || 'pending',
                 fulfillmentStatus: order.fulfillment_status || null,
                 orderStatus: order.cancelled_at ? 'CANCELLED' : 'OPEN',
-                processedAt: order.processed_at ? new Date(order.processed_at) : null
+                processedAt: order.processed_at ? new Date(order.processed_at) : null,
+                ...(order.created_at && { createdAt: new Date(order.created_at) })
               }
             });
             return true;
