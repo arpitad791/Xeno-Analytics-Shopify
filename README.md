@@ -6,7 +6,7 @@
 
 <img src="./assets/cross.gif" alt="x" width="80"/> 
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-success?style=for-the-badge&logo=vercel)](https://xeno-savyagupta.vercel.app/login)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-success?style=for-the-badge&logo=vercel)](https://xeno-analytics-beige.vercel.app/login)
 
 
 *Enterprise-grade analytics platform enabling retailers to seamlessly integrate, analyze, and visualize their Shopify store data in real-time.*
