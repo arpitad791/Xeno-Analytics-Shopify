@@ -16,6 +16,8 @@
 ---
 # Shopify Development Store Setup Guide
 
+> **Note:** Shopify now creates dev stores and apps from the [Dev Dashboard](https://dev.shopify.com/dashboard), and new custom apps can no longer be created from the store admin. The steps below show the store setup; for connecting a store to this project (app, scopes, access token, webhooks) follow [Shopify Integration](#shopify-integration) under Getting Started.
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -113,16 +115,16 @@ With your development store set up, you're ready to:
 
 ##  Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)  
-- [Live Deployment](#-live-deployment)
-- [Architecture](#-system-architecture)
-- [Technology Stack](#-technology-stack)
-- [Visual Showcase](#-visual-showcase)
-- [Database Design](#-database-schema)
-- [API Documentation](#-api-endpoints)
-- [Getting Started](#-getting-started)
-- [Connect](#-connect-with-me)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Live Deployment](#live-deployment)
+- [Demo Access](#demo-access)
+- [Architecture](#system-architecture)
+- [Technology Stack](#technology-stack)
+- [Visual Showcase](#visual-showcase)
+- [Database Design](#database-schema)
+- [API Documentation](#api-endpoints)
+- [Getting Started](#getting-started)
 
 ---
 
@@ -154,7 +156,8 @@ Xeno Analytics is a sophisticated multi-tenant platform designed to bridge the g
 - JWT-based session management
 - Multi-tenant data isolation
 - bcrypt password encryption
-- Role-based access control
+- Role-based access control (including a read-only `VIEWER` role for demo logins)
+- No credentials in source code: database URL, JWT secret and webhook secret come from environment variables
 
 ### Analytics Dashboard
 - Real-time metrics (customers, orders, revenue)
@@ -165,10 +168,14 @@ Xeno Analytics is a sophisticated multi-tenant platform designed to bridge the g
 - Cart abandonment tracking
 
 ### Data Synchronization
-- Shopify webhook integration
-- Automated data ingestion
-- Manual sync capability
-- Robust error handling
+- Manual sync of customers, products and orders from the Shopify Admin API
+- Orders of every status (open, closed, archived, cancelled) are synced, with Shopify's original order date
+- Real-time Shopify webhooks:
+  - Every webhook is verified with Shopify's HMAC-SHA256 signature; unsigned or tampered requests are rejected
+  - Each webhook is routed to the tenant that owns the sending store
+  - The backend syncs the changed data into the database itself, so data stays current even when no dashboard is open
+  - Bursts of webhooks are coalesced into a single follow-up sync per tenant and resource
+  - Open dashboards refresh automatically within ~5 seconds, and only see their own store's events
 
 ### Multi-Tenant Architecture
 - Streamlined tenant onboarding
@@ -182,9 +189,23 @@ Xeno Analytics is a sophisticated multi-tenant platform designed to bridge the g
 
 | Service | Platform | URL |
 |---------|----------|-----|
-| **Frontend** | Vercel | [https://xeno-savyagupta.vercel.app](https://xeno-savyagupta.vercel.app/login) |
-| **Backend** | Render | [Production API](https://xeno-savyagupta-backend.onrender.com/) |
+| **Frontend** | Vercel | [https://xeno-analytics-beige.vercel.app](https://xeno-analytics-beige.vercel.app/login) |
+| **Backend** | Railway | [https://xeno-analytics-shopify-production.up.railway.app](https://xeno-analytics-shopify-production.up.railway.app/health) |
 | **Database** | Railway | PostgreSQL |
+
+---
+
+## Demo Access
+
+Try the live dashboard without setting up a Shopify store:
+
+| | |
+|---|---|
+| **URL** | [https://xeno-analytics-beige.vercel.app/login](https://xeno-analytics-beige.vercel.app/login) |
+| **Email** | `demo@xenoanalytics.com` |
+| **Password** | `DemoPass123` |
+
+The demo login is **read-only**: it sees a real Shopify development store's synced customers, products and orders, but cannot change the store connection or access token. Registering a new store requires your own Shopify store and Admin API access token (see [Getting Started](#getting-started)).
 
 ---
 
@@ -244,10 +265,9 @@ Xeno Analytics is a sophisticated multi-tenant platform designed to bridge the g
 
 ### Infrastructure
 - **PostgreSQL** - Database
-- **Railway** - DB hosting
-- **Render** - Server deployment
-- **Vercel** - App deployment
-- **Ngrok** - Webhook testing
+- **Railway** - Database and backend hosting
+- **Vercel** - Frontend hosting
+- **Ngrok** - Webhook testing during local development
 
 ---
 
@@ -354,35 +374,47 @@ CREATE INDEX idx_products_tenant ON products(tenantId);
 
 ## API Endpoints
 
-### Authentication
+All endpoints except registration, login, health checks and the Shopify webhook receiver require a `Authorization: Bearer <JWT>` header.
+
+### Authentication & Profile
 ```http
-POST /api/auth/register
-POST /api/auth/login
-GET  /api/auth/profile
+POST /api/auth/register-tenant     # Register a store + owner account
+POST /api/auth/login-tenant        # Log in, returns a JWT (7-day expiry)
+GET  /api/auth/validate-token      # Check a JWT
+GET  /api/user/profile             # Current user and store
+PUT  /api/user/profile             # Update store domain / access token (not allowed for VIEWER)
 ```
 
 ### Analytics
 ```http
-GET /api/analytics/overview
-GET /api/analytics/customers
-GET /api/analytics/orders
-GET /api/analytics/revenue
+GET /api/dashboard/:tenantId              # Totals: customers, products, orders, revenue
+GET /api/analytics/orders-by-date         # ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD (end date inclusive)
+GET /api/analytics/top-customers          # Top 5 customers by spend
+GET /api/analytics/cart-abandonment
+GET /api/analytics/sales-performance
+GET /api/analytics/customer-behavior
+GET /api/analytics/product-performance
+GET /api/customers/list                   # Paginated, searchable customer list
 ```
 
-### Data Management
+### Shopify Sync
 ```http
-GET    /api/customers
-GET    /api/customers/:id
-GET    /api/orders
-GET    /api/orders/:id
-GET    /api/products
+POST /api/sync/customers
+POST /api/sync/products
+POST /api/sync/orders               # All order statuses
+POST /api/sync/all
 ```
 
-### Shopify Integration
+### Shopify Webhooks
 ```http
-POST /api/shopify/sync
-POST /api/webhooks/shopify
-GET  /api/shopify/status
+POST /api/webhooks/shopify          # Called by Shopify; HMAC-verified, no JWT
+GET  /api/webhooks/check?after=<n>  # Dashboard polls for its own store's new events
+```
+
+### Health
+```http
+GET /health
+GET /test-db                        # Database connectivity + row counts
 ```
 
 ---
@@ -399,64 +431,98 @@ GET  /api/shopify/status
 
 **1. Clone Repository**
 ```bash
-git clone https://github.com/savyagupta-2004/xeno-savyagupta.git
-cd xeno-savyagupta
+git clone https://github.com/arpitad791/Xeno-Analytics-Shopify.git
+cd Xeno-Analytics-Shopify
 ```
 
 **2. Backend Setup**
+
+Create `xeno-backend/.env`:
+```env
+DATABASE_URL="postgresql://user:pass@localhost:5432/xeno"
+JWT_SECRET="a-long-random-string"
+SHOPIFY_WEBHOOK_SECRET="your-shopify-app-client-secret"   # needed for webhooks
+PORT=3006
+NODE_ENV=development
+```
+
 ```bash
 cd xeno-backend
 npm install
-cp .env.example .env
-
-# Configure .env
-DATABASE_URL="postgresql://user:pass@localhost:5432/xeno"
-JWT_SECRET="your-secret-key"
-
-# Run migrations
-npx prisma migrate dev
-npx prisma generate
-
-# Start server
-npm run dev
+npx prisma migrate deploy
+npm run dev            # starts simple-server.js on PORT (default 3005)
 ```
 
 **3. Frontend Setup**
+
+Create `xeno-dashboard/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3006
+```
+
 ```bash
 cd xeno-dashboard
 npm install
-
-# Configure environment
-REACT_APP_API_URL=http://localhost:5000
-
-# Start application
-npm start
+npm run dev            # http://localhost:3000
 ```
 
 ### Shopify Integration
 
-1. Create Shopify Partner account at [partners.shopify.com](https://partners.shopify.com)
-2. Create development store
-3. Generate API credentials
-4. Configure webhooks using ngrok:
-```bash
-ngrok http 5000
-```
+Shopify no longer allows new custom apps to be created from the store admin ("Develop apps"); apps are created in the **Dev Dashboard**.
+
+1. Go to [dev.shopify.com/dashboard](https://dev.shopify.com/dashboard) and create a **dev store** from the **Dev stores** page. Note its `xxxx.myshopify.com` domain (shown in the admin URL).
+2. Add sample products, customers and orders in the store admin (or generate test data when creating the store).
+3. **Apps → Create app**, set Admin API scopes `read_products`, `read_customers`, `read_orders`, and **release** a version.
+4. **Install** the app on the dev store. The app and store must be in the same Dev Dashboard organization.
+5. Copy the app's **Client ID** and **Client secret** from its Settings page, then request an access token:
+   ```bash
+   curl -X POST "https://<store>.myshopify.com/admin/oauth/access_token" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "grant_type=client_credentials&client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>"
+   ```
+   The returned `access_token` is valid for 24 hours.
+6. Open the dashboard's **/register** page and enter the store domain and access token, then use **Sync All**.
+
+**Webhooks (real-time updates)**
+
+1. Set `SHOPIFY_WEBHOOK_SECRET` on the backend to the key Shopify signs webhooks with: the app's **Client secret** for app webhooks, or the signing key shown under **Settings → Notifications → Webhooks** for webhooks created in the store admin.
+2. Create webhooks for `orders/create`, `orders/updated`, `products/create`, `products/update`, `customers/create` and `customers/update` (JSON format) pointing to:
+   ```
+   https://<backend-domain>/api/webhooks/shopify
+   ```
+3. For local testing, expose the backend with `ngrok http 3006` and use the ngrok URL instead.
 
 ### Deployment
 
-**Vercel Deployment**
-```bash
-npm install -g vercel
-cd xeno-dashboard && vercel --prod
-cd xeno-backend && vercel --prod
-```
+**Database (Railway)**
+1. Create a project on [railway.com](https://railway.com) and add **PostgreSQL**.
+2. From your machine, create the tables using the database's `DATABASE_PUBLIC_URL`:
+   ```bash
+   cd xeno-backend
+   DATABASE_URL="<DATABASE_PUBLIC_URL>" npx prisma migrate deploy
+   ```
 
-**Railway Database**
-1. Sign up at railway.app
-2. Provision PostgreSQL
-3. Copy connection string
-4. Run: `npx prisma migrate deploy`
+**Backend (Railway)**
+1. In the same project: **Add → GitHub Repo** → this repository.
+2. Service **Settings → Source → Root Directory**: `xeno-backend` (build and start are configured by `railway.json` / `nixpacks.toml`).
+3. **Variables**: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `JWT_SECRET`, `NODE_ENV=production`, `SHOPIFY_WEBHOOK_SECRET`.
+4. **Settings → Networking → Generate Domain**, then check `https://<domain>/health`.
+
+**Frontend (Vercel)**
+1. **Add New → Project** → import this repository and choose **only** the `xeno-dashboard` app (Root Directory `xeno-dashboard`, preset Next.js).
+2. Add the environment variable `NEXT_PUBLIC_API_URL` = the Railway backend URL, **without a trailing slash**, as type **Config** (it is public and baked into the build).
+3. Deploy. After changing `NEXT_PUBLIC_API_URL`, redeploy so the new value is built in.
+
+The backend's CORS settings already allow `*.vercel.app` and `*.railway.app` origins.
+
+**Demo login (optional)**
+
+Create a read-only login that shares an existing owner's store:
+```bash
+cd xeno-backend
+DATABASE_URL="<DATABASE_PUBLIC_URL>" node scripts/create-demo-user.js <ownerEmail> <demoEmail> <demoPassword>
+```
+Running it again for the same demo email resets its password. Demo (`VIEWER`) users can view and sync data but cannot change the store connection.
 
 ---
 
@@ -476,16 +542,28 @@ const customers = await prisma.customer.findMany({
 ```
 
 ### Real-Time Webhook Processing
-Shopify webhooks are processed asynchronously with retry logic:
+Shopify webhooks are verified, matched to the right tenant and synced into the database in the background (`xeno-backend/src/services/webhookService.js`):
 
 ```javascript
-// Webhook handler with signature verification
-app.post('/api/webhooks/shopify', verifyWebhook, async (req, res) => {
-  const event = req.headers['x-shopify-topic'];
-  await processWebhookEvent(event, req.body);
-  res.status(200).send('OK');
+router.post("/shopify", async (req, res) => {
+  // 1. Reject anything not signed by Shopify (HMAC-SHA256 over the raw body)
+  if (!isValidHmac(req.body, req.get("x-shopify-hmac-sha256"), process.env.SHOPIFY_WEBHOOK_SECRET)) {
+    return res.status(401).send("Invalid signature");
+  }
+
+  // 2. Find the tenant that owns the sending store
+  const tenant = await findTenantByShopDomain(req.get("x-shopify-shop-domain"));
+
+  // 3. Acknowledge quickly (Shopify retries slow or non-2xx responses)
+  res.status(200).send("OK");
+
+  // 4. Sync the affected resource for that tenant only; concurrent webhooks
+  //    for the same tenant+resource collapse into one follow-up run
+  scheduleSync(tenant.id, resourceFromTopic(req.get("x-shopify-topic")));
 });
 ```
+
+The dashboard polls `GET /api/webhooks/check` with its last-seen event number and refreshes only the charts affected by new events.
 
 ### Secure Authentication Flow
 JWT-based authentication with HTTP-only cookies and token refresh:
@@ -544,9 +622,11 @@ const authenticate = async (req, res, next) => {
 - Session duration: 24 hours with refresh tokens
 
 **Data Synchronization**
-- Manual sync implemented for MVP
-- Webhooks configured for real-time updates
-- Batch processing for initial data import
+- Manual sync for the initial import (up to 250 records per resource per sync)
+- HMAC-verified webhooks keep data current afterwards
+- Webhook events are held in memory on the backend; a restart clears pending dashboard notifications, but the data itself is already in the database
+- Shopify returns only the last 60 days of orders unless the app is granted `read_all_orders`
+- Access tokens from the client-credentials grant expire after 24 hours; a new token can be saved from the dashboard's **Settings**
 
 **Scalability**
 - Current architecture supports 100 concurrent users
